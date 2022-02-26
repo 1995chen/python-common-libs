@@ -100,7 +100,7 @@ class SSOBase:
     def set_generate_token_info_handler(self, handler: Callable) -> None:
         """
         设置handler
-        该handler会在payload生成jwt之前调用
+        该handler会根据access_token_info生成ITokenInfo
         :param handler:
         :return:
         """
