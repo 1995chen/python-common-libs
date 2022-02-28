@@ -4,7 +4,7 @@
 from setuptools import setup
 
 SHORT = u'template_rbac'
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 __author__ = '1995chen'
 __email__ = 'chenl2448365088@gmail.com'
 # 依赖的库

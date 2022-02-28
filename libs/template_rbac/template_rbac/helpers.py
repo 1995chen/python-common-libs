@@ -25,7 +25,7 @@ def decode_token(jwt_token: str, jwt_secret: str) -> Dict[str, Any]:
     if not isinstance(jwt_token, str):
         raise KeyParamsTypeInvalidException('jwt_token', str)
     try:
-        jwt_obj = jwt.decode(jwt_token, key=jwt_secret, verify=True, algorithms="HS256")
+        jwt_obj = jwt.decode(jwt_token, key=jwt_secret, verify=True, algorithms=['HS256'])
     except (jwt.InvalidSignatureError, Exception):
         logger.error(f"invalid token {jwt_token}", exc_info=True)
         raise TokenInvalidException(jwt_token)

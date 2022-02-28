@@ -12,7 +12,8 @@ import jwt
 from flask import Blueprint
 from flask_restful import Api
 from template_exception import (
-    HandlerUnCallableException, KeyParamsTypeInvalidException
+    HandlerUnCallableException, KeyParamsTypeInvalidException,
+    AuthorizedFailException, TokenInvalidException
 )
 from template_json_encoder import TemplateJSONEncoder
 from .helpers import url_path_append, url_query_join
@@ -25,10 +26,22 @@ class ITokenInfo:
     access_token: str
     # token有效截止时间
     expires_at: int
+    refresh_token: str
+    # refresh_token有效截止时间
+    refresh_expires_at: int
+    token_type: str
+    # 用户唯一id
+    user_id: str
     # 用户名
     username: str
     # 邮箱
     email: Optional[str]
+    # 姓名
+    name: str
+    # 姓
+    family_name: str
+    # 名
+    given_name: str
 
 
 class SSOBase:
@@ -215,7 +228,7 @@ class SSOBase:
         # 调用handler
         self.__before_generate_jwt_handler(pay_load)
         logger.info(f"pay_load is {pay_load}, jwt_secret is {self.jwt_secret}")
-        jwt_token = jwt.encode(pay_load, self.jwt_secret)
+        jwt_token = jwt.encode(pay_load, self.jwt_secret, algorithm='HS256')
         if isinstance(jwt_token, bytes):
             jwt_token = jwt_token.decode('utf-8')
         return jwt_token
@@ -247,6 +260,78 @@ class SSOBase:
         if self.token_timeout:
             expires_at = self.token_timeout + int(time.time())
         return self.__generate_token(_token_data, expires_at)
+
+    def _refresh_token(self, refresh_token: str) -> ITokenInfo:
+        """
+        具体refresh token的操作由子类实现
+        """
+        raise NotImplementedError('_refresh_token')
+
+    def refresh_token(self, jwt_token: str, refresh_token_handler: Optional[Callable] = None) -> str:
+        """
+        刷新用户缓存
+        :param jwt_token: 原始jwt缓存
+        :param refresh_token_handler: handler方法
+        :return:
+        """
+        try:
+            jwt_obj = jwt.decode(
+                jwt_token,
+                key=self.jwt_secret,
+                verify=True,
+                algorithms=['HS256'],
+                # 忽略超时, 会尝试refresh_token
+                options={"verify_exp": False},
+            )
+        except (jwt.InvalidSignatureError, Exception) as e:
+            logger.warning(f"decode jwt failed, token is {jwt_token}", exc_info=True)
+            raise AuthorizedFailException(str(e))
+        # 原始token的data内容
+        jwt_data: Dict[str, Any] = jwt_obj["data"]
+        # 基本的数据验证
+        if not (isinstance(jwt_data, dict) and jwt_data['access_token']):
+            logger.warning(f"invalid token {jwt_data}", exc_info=True)
+            raise TokenInvalidException()
+        # 获取当前时间
+        now_ts = int(time.time())
+        pay_load = {
+            'iat': now_ts,
+            'iss': self.app_root_url,
+            'jti': str(uuid4()),
+        }
+        # 定义飞书token信息
+        lark_token_data: Dict[str, Any]
+        # 刷新用户缓存
+        if now_ts >= jwt_data['expires_at']:
+            if 'refresh_expires_at' not in jwt_data or now_ts >= jwt_data['refresh_expires_at']:
+                raise AuthorizedFailException()
+            # 可以refresh
+            try:
+                logger.info(f"try to refresh token use refresh_token({jwt_data['refresh_token']})")
+                token_info: ITokenInfo = self._refresh_token(jwt_data['refresh_token'])
+                # 转化为字典
+                lark_token_data = json.loads(json.dumps(token_info, cls=TemplateJSONEncoder))
+            except Exception:
+                logger.warning(f"failed to refresh token use refresh_token({jwt_data['refresh_token']})")
+                raise AuthorizedFailException()
+        else:
+            # token未过期
+            lark_token_data = jwt_data
+        pay_load.update({
+            'data': lark_token_data,
+            'exp': lark_token_data['refresh_expires_at']
+        })
+        # 调用handler, 由于refresh token会取邮件的username,因此，如果
+        # 需要切换用户, 则需要覆盖该handler, 修改username即可
+        if callable(refresh_token_handler):
+            logger.info(f"before call refresh_token_handler, pay_load: {pay_load}")
+            refresh_token_handler(pay_load)
+            logger.info(f"after call refresh_token_handler, pay_load: {pay_load}")
+        logger.info(f"pay_load is {pay_load}, jwt_secret is {self.jwt_secret}")
+        jwt_token: str = jwt.encode(pay_load, self.jwt_secret, algorithm='HS256')
+        if isinstance(jwt_token, bytes):
+            jwt_token = jwt_token.decode('utf-8')
+        return jwt_token
 
     def __do_before_redirect_handler(self, args: Dict[str, str]) -> None:
         if callable(self.before_redirect_handler):

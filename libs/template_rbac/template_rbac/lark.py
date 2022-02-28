@@ -2,18 +2,14 @@
 
 
 import time
-import json
 import logging
-from typing import Dict, Union, Any, Callable, Optional
-from uuid import uuid4
+from typing import Dict, Union, Any, Optional
 from dataclasses import dataclass
 
-import jwt
 import requests
 from template_exception import (
-    SSOServerException, AuthorizedFailException, TokenInvalidException
+    SSOServerException, AuthorizedFailException
 )
-from template_json_encoder import TemplateJSONEncoder
 
 from .base import SSOBase, ITokenInfo
 from .helpers import url_query_join
@@ -23,10 +19,15 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ILarkTokenInfo(ITokenInfo):
-    # 飞书用户id
-    user_id: str
-    refresh_expires_at: int
-    refresh_token: str
+    # 头像
+    avatar_big: str
+    avatar_middle: int
+    avatar_thumb: str
+    avatar_url: str
+    # open_id
+    open_id: str
+    tenant_key: str
+    union_id: str
 
 
 class LarkSSO(SSOBase):
@@ -72,17 +73,36 @@ class LarkSSO(SSOBase):
         """
         now_ts = int(time.time())
 
+        # 获取用户信息
+        username: str = access_token_info['data']['email'].split('@')[0]
+        en_name: str = access_token_info['data']['en_name']
+        # 姓
+        family_name: str = en_name.split(' ')[-1]
+        # 名
+        given_name: str = en_name.split(' ')[0]
+
         return ILarkTokenInfo(
             access_token=access_token_info['data']['access_token'],
-            expires_at=now_ts + access_token_info['data']['expires_in'] - 600,
-            username=access_token_info['data']['email'].split('@')[0],
-            user_id=access_token_info['data']['user_id'],
-            refresh_expires_at=now_ts + access_token_info['data']['refresh_expires_in'] - 600,
+            expires_at=now_ts + access_token_info['data']['expires_in'] - 30,
             refresh_token=access_token_info['data']['refresh_token'],
-            email=access_token_info['data']['email']
+            refresh_expires_at=now_ts + access_token_info['data']['refresh_expires_in'] - 60,
+            token_type=access_token_info['data']['token_type'],
+            user_id=access_token_info['data']['user_id'],
+            username=username,
+            email=access_token_info['data']['email'],
+            name=en_name,
+            family_name=family_name,
+            given_name=given_name,
+            avatar_big=access_token_info['data']['avatar_big'],
+            avatar_middle=access_token_info['data']['avatar_middle'],
+            avatar_thumb=access_token_info['data']['avatar_thumb'],
+            avatar_url=access_token_info['data']['avatar_url'],
+            open_id=access_token_info['data']['open_id'],
+            tenant_key=access_token_info['data']['tenant_key'],
+            union_id=access_token_info['data']['union_id'],
         )
 
-    def _refresh_user_token(self, refresh_token: str) -> ILarkTokenInfo:
+    def _refresh_token(self, refresh_token: str) -> ILarkTokenInfo:
         """
         根据refresh_token获取用户token
         :param refresh_token:
@@ -139,55 +159,3 @@ class LarkSSO(SSOBase):
         if resp_data.get('code') != 0:
             raise SSOServerException(resp_data.get('msg'))
         return resp_data
-
-    def refresh_token(self, jwt_token: str, refresh_token_handler: Optional[Callable] = None) -> str:
-        """
-        刷新用户缓存
-        :param jwt_token: 原始jwt缓存
-        :param refresh_token_handler: handler方法
-        :return:
-        """
-        try:
-            jwt_obj = jwt.decode(jwt_token, key=self.jwt_secret, verify=True, algorithms='HS256')
-        except (jwt.InvalidSignatureError, Exception) as e:
-            logger.warning(f"decode jwt failed, token is {jwt_token}", exc_info=True)
-            raise AuthorizedFailException(str(e))
-        # 原始token的data内容
-        jwt_data: Dict[str, Any] = jwt_obj["data"]
-        # 基本的数据验证
-        if not (isinstance(jwt_data, dict) and jwt_data['access_token']):
-            logger.warning(f"invalid token {jwt_data}", exc_info=True)
-            raise TokenInvalidException()
-        # 获取当前时间
-        now_ts = int(time.time())
-        pay_load = {
-            'iat': now_ts,
-            'iss': self.app_root_url,
-            'jti': str(uuid4()),
-        }
-        # 定义飞书token信息
-        lark_token_data: Dict[str, Any]
-        # 刷新用户缓存
-        if jwt_data['expires_at'] <= now_ts < jwt_data['refresh_expires_at']:
-            token_info: ILarkTokenInfo = self._refresh_user_token(jwt_data['refresh_token'])
-            # 转化为字典
-            lark_token_data = json.loads(json.dumps(token_info, default=TemplateJSONEncoder().default))
-        elif now_ts >= jwt_data['refresh_expires_at']:
-            raise AuthorizedFailException()
-        else:
-            lark_token_data = jwt_data
-        pay_load.update({
-            'data': lark_token_data,
-            'exp': lark_token_data['refresh_expires_at']
-        })
-        # 调用handler, 由于refresh token会取邮件的username,因此，如果
-        # 需要切换用户, 则需要覆盖该handler, 修改username即可
-        if callable(refresh_token_handler):
-            logger.info(f"before call refresh_token_handler, pay_load: {pay_load}")
-            refresh_token_handler(pay_load)
-            logger.info(f"after call refresh_token_handler, pay_load: {pay_load}")
-        logger.info(f"pay_load is {pay_load}, jwt_secret is {self.jwt_secret}")
-        jwt_token: str = jwt.encode(pay_load, self.jwt_secret)
-        if isinstance(jwt_token, bytes):
-            jwt_token = jwt_token.decode('utf-8')
-        return jwt_token
