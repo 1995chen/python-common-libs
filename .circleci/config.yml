@@ -48,6 +48,7 @@ jobs:
       - run:
           name: Run unittest
           command: |
+            pip3 install -r requirements.txt
             cd test
             python -m unittest
       # 持久化root目录
