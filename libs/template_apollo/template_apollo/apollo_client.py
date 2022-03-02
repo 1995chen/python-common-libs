@@ -158,7 +158,7 @@ class ApolloClient(object):
                         nid != latest_notification_id and
                         callable(self.config_changed_handler)
                 ):
-                    logger.info(f"pre call config_changed_handler(pay_load), entry: {entry}")
+                    logger.info(f"pre call config_changed_handler(entry), entry: {entry}")
                     self.config_changed_handler(entry)
         else:
             logger.warning('Sleep...')
