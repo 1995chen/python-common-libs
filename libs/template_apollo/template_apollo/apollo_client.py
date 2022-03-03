@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class ApolloClient(object):
     def __init__(
             self, app_id, cluster='default', config_server_url='http://localhost:8080',
-            timeout=80, ip=None, cycle_time: int = 5,
+            timeout=80, ip=None, cycle_time: int = 5, retry_times: int = 3
     ):
         self.config_server_url = config_server_url
         self.appId = app_id
@@ -30,6 +30,7 @@ class ApolloClient(object):
         self._cache = {}
         self._notification_map = {'application': -1}
         self._cycle_time = cycle_time
+        self._retry_times = int(retry_times)
         # 定义handler
         self.config_changed_handler: Optional[Callable] = None
         self.listener_thread: Optional[Thread] = None
@@ -167,9 +168,15 @@ class ApolloClient(object):
 
     def _listener(self):
         logger.info('Entering listener loop...')
-        while not self._stopping:
-            self._long_poll()
-            time.sleep(self._cycle_time)
+        # 重试次数
+        retry_times: int = 0
+        while not self._stopping and retry_times <= self._retry_times:
+            try:
+                self._long_poll()
+            except requests.exceptions.RequestException:
+                logger.warning(f"network error, retry_times is {retry_times}", exc_info=True)
+                retry_times += 1
+            time.sleep(self._cycle_time + 5 * retry_times)
 
         logger.info("Listener stopped!")
         self.stopped = True
