@@ -359,8 +359,8 @@ class SSOBase:
     def get_resources(self) -> Blueprint:
         from .apis import TemplateSSOLogin, TemplateSSOLogout
         # 将inject实例注入类变量中
-        TemplateSSOLogin.template_rbac = self
-        TemplateSSOLogout.template_rbac = self
+        TemplateSSOLogin.template_rbac_cls = self.__class__
+        TemplateSSOLogout.template_rbac_cls = self.__class__
         blueprint = Blueprint('TemplateSSO', __name__)
         api = Api(blueprint)
         api.add_resource(TemplateSSOLogin, self.api_auth_path)

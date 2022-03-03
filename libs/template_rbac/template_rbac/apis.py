@@ -4,26 +4,31 @@
 import logging
 import base64
 import json
-from typing import Any, Dict, Callable
+from typing import Any, Dict, Callable, Type, Union
 
+import inject
 from flask import redirect
 from werkzeug.wrappers.response import Response
 from flask_restful import Resource, reqparse
 from template_exception import AuthorizedFailException
 
 from .helpers import url_query_join
+from .lark import LarkSSO
+from .oauth2 import OAuth2SSO
 
 logger = logging.getLogger(__name__)
 
 
 class TemplateSSOLogin(Resource):
-    template_rbac = None
+    template_rbac_cls: Type[Union[LarkSSO, OAuth2SSO]] = None
 
     @classmethod
     def get(cls) -> Response:
         """
         SSO登录Get 请求方法
         """
+        template_rbac: Union[LarkSSO, OAuth2SSO] = inject.instance(cls.template_rbac_cls)
+
         parser = reqparse.RequestParser()
         parser.add_argument('code', type=str, default=None)
         parser.add_argument('state', type=str, default='')
@@ -43,11 +48,11 @@ class TemplateSSOLogin(Resource):
             state_dict['state'] = args['state']
             state_dict['redirect_url'] = args['redirect_url']
             # 支持调试模式下切换用户
-            if cls.template_rbac.debug_mode:
+            if template_rbac.debug_mode:
                 state_dict['target_user'] = args['target_user']
             # 对state_dict进行base64加密
             state_base64: str = base64.b64encode(json.dumps(state_dict).encode('utf-8')).decode('utf-8')
-            redirect_url: str = url_query_join(cls.template_rbac.sso_auth_url, state=state_base64)
+            redirect_url: str = url_query_join(template_rbac.sso_auth_url, state=state_base64)
             logger.info(f"redirect to {redirect_url}")
             return redirect(redirect_url)
         logger.info(f"auth code is {code}")
@@ -68,7 +73,7 @@ class TemplateSSOLogin(Resource):
                 raise AuthorizedFailException("invalid state")
 
         # 详细处理
-        redirect_path: str = cls.template_rbac.after_get_code(
+        redirect_path: str = template_rbac.after_get_code(
             state_dict['redirect_url'], state_dict['state'],
             state_dict.get('target_user'), code
         )
@@ -80,11 +85,12 @@ class TemplateSSOLogin(Resource):
 
 
 class TemplateSSOLogout(Resource):
-    template_rbac = None
+    template_rbac_cls: Type[Union[LarkSSO, OAuth2SSO]] = None
 
     @classmethod
     def get(cls) -> Any:
         """
         登出
         """
-        return cls.template_rbac.do_logout_handler()
+        template_rbac: Union[LarkSSO, OAuth2SSO] = inject.instance(cls.template_rbac_cls)
+        return template_rbac.do_logout_handler()
