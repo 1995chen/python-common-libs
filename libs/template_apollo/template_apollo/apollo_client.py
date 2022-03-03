@@ -77,13 +77,14 @@ class ApolloClient(object):
 
     # Start the long polling loop.
     # create a worker thread to do the loop. Call self.stop() to quit the loop
-    def start(self):
+    def start(self, daemon=True):
         # started防止重复调用。
         if self.started:
             return
         self.started = True
         # 开线程监听配置变更
         self.listener_thread = Thread(target=self._listener)
+        self.listener_thread.setDaemon(daemon)
         self.listener_thread.start()
 
     def stop(self):
