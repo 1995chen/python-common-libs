@@ -79,7 +79,7 @@ class Cache:
         cache_key = func.__module__ + '.' + func.__name__ + '.' + hashlib.md5(cache_key).hexdigest()
         return cache_key
 
-    def store_cache(self, key: str, value: Any, timeout: Optional[int], **user_kwargs) -> Any:
+    def store_cache(self, key: str, value: Any, timeout: Optional[int] = None, **user_kwargs) -> Any:
         """
         存储缓存
         :param key: 待存储缓存
@@ -93,7 +93,7 @@ class Cache:
             raise NotImplementedError('store_cache_handler')
         return self.store_cache_handler(key, value, timeout, **user_kwargs)
 
-    def get_cache(self, key: str, timeout: Optional[int], **user_kwargs) -> Any:
+    def get_cache(self, key: str, timeout: Optional[int] = None, **user_kwargs) -> Any:
         """
         获得缓存
         :param key: 缓存key

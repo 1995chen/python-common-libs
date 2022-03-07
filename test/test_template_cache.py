@@ -27,13 +27,13 @@ class TestTemplateCacheMethods(unittest.TestCase):
         # 存储缓存仓库
         cls.cache_store = dict()
 
-        def get_cache_handler(key: str, timeout: Optional[int], **user_kwargs) -> Any:
+        def get_cache_handler(key: str, timeout: Optional[int] = None, **user_kwargs) -> Any:
             """
                 获得缓存的handler
             """
             return cls.cache_store.get(key, None)
 
-        def store_cache_handler(key: str, value: Any, timeout: Optional[int], **user_kwargs) -> Any:
+        def store_cache_handler(key: str, value: Any, timeout: Optional[int] = None, **user_kwargs) -> Any:
             """
                 存储cache的handler
             """
