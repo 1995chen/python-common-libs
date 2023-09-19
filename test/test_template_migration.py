@@ -10,6 +10,7 @@ import inject
 import template_logging
 from template_migration import Migration
 from sqlalchemy.orm import scoped_session, Session, sessionmaker
+from sqlalchemy.sql import text
 from sqlalchemy import create_engine
 
 # 创建日志目录
@@ -49,16 +50,16 @@ class TestTemplateMigrationMethods(unittest.TestCase):
                 """
                 session = inject.instance(MainDBSession)
                 # 创建一张表
-                session.execute("""
+                session.execute(text("""
                     CREATE TABLE `test_do_init_migrate` (
                       `id` INTEGER PRIMARY KEY AUTOINCREMENT,
                       `value` TEXT
                     );
-                """)
+                """))
                 # 初始化数据
-                session.execute(f"""
+                session.execute(text(f"""
                     INSERT INTO `test_do_init_migrate` (`value`) VALUES ('do init');
-                """)
+                """))
                 session.commit()
                 logger.info("do init_data_handler done")
 
@@ -109,7 +110,7 @@ class TestTemplateMigrationMethods(unittest.TestCase):
         """
         self.migration_instance.do_migrate()
         # 查询数据是否初始化
-        init_result = self.main_session.execute(f"select * from test_do_init_migrate")
+        init_result = self.main_session.execute(text(f"select * from test_do_init_migrate"))
         init_result = [_r for _r in init_result]
         self.assertEqual(len(init_result), 1)
         self.assertEqual(init_result[0][0], 1)
@@ -118,7 +119,7 @@ class TestTemplateMigrationMethods(unittest.TestCase):
         # 再次初始化
         self.migration_instance.do_migrate()
         # 查询数据是否初始化
-        init_result = self.main_session.execute(f"select * from test_do_init_migrate")
+        init_result = self.main_session.execute(text(f"select * from test_do_init_migrate"))
         init_result = [_r for _r in init_result]
         self.assertEqual(len(init_result), 1)
         self.assertEqual(init_result[0][0], 1)
@@ -146,6 +147,7 @@ from typing import Any
 
 import inject
 import template_logging
+from sqlalchemy.sql import text
 
 test_template_migration: Any = importlib.import_module('test_template_migration')
 
@@ -158,14 +160,14 @@ def do_insert():
 
         # 创建一张表
         session.execute(
-            "CREATE TABLE `test_do_migrate` "
+            text("CREATE TABLE `test_do_migrate` "
             "(`id` INTEGER PRIMARY KEY AUTOINCREMENT, `value` TEXT"
-            ");"
+            ");")
         )
         # 初始化数据
-        session.execute(f"INSERT INTO `test_do_migrate` (`value`) VALUES ('test_do_migrate');")
+        session.execute(text(f"INSERT INTO `test_do_migrate` (`value`) VALUES ('test_do_migrate');"))
         session.commit()
-        logger.info("do_insert success")
+        logger.info(text("do_insert success"))
     except Exception as e:
         logger.error(f"Failed do_insert", exc_info=True)
         raise e
@@ -180,7 +182,7 @@ def do():
             f.write(migration_script)
         self.migration_instance.do_migrate()
         # 校验数据
-        result = self.main_session.execute(f"select * from test_do_migrate")
+        result = self.main_session.execute(text(f"select * from test_do_migrate"))
         result = [_r for _r in result]
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0][0], 1)
@@ -189,7 +191,7 @@ def do():
         # 再次执行migrate
         self.migration_instance.do_migrate()
         # 查看migration脚本是否重复执行
-        result = self.main_session.execute(f"select * from test_do_migrate")
+        result = self.main_session.execute(text(f"select * from test_do_migrate"))
         result = [_r for _r in result]
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0][0], 1)
