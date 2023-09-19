@@ -1,9 +1,5 @@
-FROM python:3.6.8
+FROM python:3.8.11
 MAINTAINER liang.chen
-
-# 拷贝源
-COPY docker/sources.list /etc/apt/sources.list
-RUN cat /etc/apt/sources.list
 
 # 安装oracle客户端
 WORKDIR /opt/oracle

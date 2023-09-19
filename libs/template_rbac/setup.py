@@ -10,7 +10,7 @@ __email__ = 'chenl2448365088@gmail.com'
 # 依赖的库
 __install_requires__ = [
     "inject >= 4.3.1", "PyJWT >= 1.7.1,<=2.0.1", "requests >= 2.26.0",
-    "flask >= 2.0.1", "flask_restful >= 0.3.9", "dataclasses >= 0.8",
+    "flask >= 2.0.1", "flask_restful >= 0.3.9",
     "template_exception >= 1.0.0", "template_json_encoder >= 1.0.0"
 ]
 

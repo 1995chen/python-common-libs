@@ -9,7 +9,7 @@ __author__ = '1995chen'
 __email__ = 'chenl2448365088@gmail.com'
 # 依赖的库
 __install_requires__ = [
-    "inject >= 4.3.1", "SQLAlchemy >= 1.3.2", "dataclasses >= 0.8",
+    "inject >= 4.3.1", "SQLAlchemy >= 1.3.2",
 ]
 
 setup(

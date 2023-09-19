@@ -10,7 +10,7 @@ __email__ = 'chenl2448365088@gmail.com'
 
 # 依赖的库
 __install_requires__ = [
-    "inject >= 4.3.1", "SQLAlchemy >= 1.3.2", "dataclasses >= 0.8",
+    "inject >= 4.3.1", "SQLAlchemy >= 1.3.2",
     "template_transaction >= 1.0.0", "template_exception >= 1.0.0"
 ]
 

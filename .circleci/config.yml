@@ -36,7 +36,7 @@ jobs:
 
   run_unittest:
     docker:
-      - image: python:3.6.8
+      - image: python:3.8.11
     steps:
       # 挂载root目录
       - attach_workspace:
@@ -63,7 +63,7 @@ jobs:
       - attach_workspace:
           at: /root
       - setup_remote_docker:
-          version: 19.03.13
+          version: 20.10.14
       - run:
           name: Move dist dir
           command: |
@@ -72,17 +72,17 @@ jobs:
           name: Build Image
           command: |
             echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-            docker build -f $(pwd)/docker/Dockerfile -t 1995chen/python:3.6.8-${CIRCLE_SHA1: 0: 7} $(pwd)
-            docker tag 1995chen/python:3.6.8-${CIRCLE_SHA1: 0: 7} 1995chen/python:3.6.8-latest
+            docker build -f $(pwd)/docker/Dockerfile -t 1995chen/python:3.8.11-${CIRCLE_SHA1: 0: 7} $(pwd)
+            docker tag 1995chen/python:3.8.11-${CIRCLE_SHA1: 0: 7} 1995chen/python:3.8.11-latest
       - run:
           name: Archive Docker image
           command: |
-            docker save -o image.tar 1995chen/python:3.6.8-${CIRCLE_SHA1: 0: 7}
+            docker save -o image.tar 1995chen/python:3.8.11-${CIRCLE_SHA1: 0: 7}
       - run:
           name: Push Image
           command: |
-            docker push 1995chen/python:3.6.8-${CIRCLE_SHA1: 0: 7}
-            docker push 1995chen/python:3.6.8-latest
+            docker push 1995chen/python:3.8.11-${CIRCLE_SHA1: 0: 7}
+            docker push 1995chen/python:3.8.11-latest
       # 持久化root目录
       - persist_to_workspace:
           root: /root
@@ -95,7 +95,7 @@ jobs:
       - attach_workspace:
           at: /root
       - setup_remote_docker:
-          version: 19.03.13
+          version: 20.10.14
       - run:
           name: Load archived Docker image
           command: docker load -i image.tar
@@ -103,8 +103,8 @@ jobs:
           name: Tag & Push Image
           command: |
             echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-            docker tag 1995chen/python:3.6.8-${CIRCLE_SHA1: 0: 7} 1995chen/python:3.6.8-$CIRCLE_TAG
-            docker push 1995chen/python:3.6.8-$CIRCLE_TAG
+            docker tag 1995chen/python:3.8.11-${CIRCLE_SHA1: 0: 7} 1995chen/python:3.8.11-$CIRCLE_TAG
+            docker push 1995chen/python:3.8.11-$CIRCLE_TAG
 
 workflows:
   staging:
